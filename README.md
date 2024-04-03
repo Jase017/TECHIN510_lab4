@@ -4,7 +4,7 @@ A data analysis application to wine quality. This datasets is related to red var
 ```
 python -m venv venv
 source venv/Scripts/activate
-pip install -r requirement.txt
+pip install -r requirements.txt
 
 streamlit run app.py
 ```
