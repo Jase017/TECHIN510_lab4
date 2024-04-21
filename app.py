@@ -1,50 +1,52 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
+import sqlite3
 
-df = pd.read_csv("./Data/WineQT.csv")
+def fetch_books(query, filter_by=None):
+    conn = sqlite3.connect('books.db')
+    c = conn.cursor()
+    
+    query = f"%{query}%"
+    # Start with basic SQL query including wildcard search
+    sql = 'SELECT * FROM books WHERE title LIKE ? OR rating LIKE ?'
+    
+    # Conditional logic to modify the SQL based on user input
+    if filter_by == 'Price':
+        sql += ' ORDER BY price'
+    elif filter_by == 'Rating':
+        sql += ' ORDER BY rating DESC'
+    else:
+        # Default to sorting alphabetically by title if no filter is selected
+        sql += ' ORDER BY title'
+    
+    c.execute(sql, (query, query))
+    books = c.fetchall()
+    conn.close()
+    return books
 
-st.set_page_config(page_title="Wine Quality", 
-                   page_icon="🍷",
-                   layout="centered", 
-                   initial_sidebar_state="auto")
+st.title('📕Go find the book you want!📘')
+st.subheader('📚Here is a web scraping website that scrapes books from "http://books.toscrape.com"')
+st.subheader('You can easily search and filter books on this website!', divider='rainbow')
 
-st.title("🍷 Wine Quality Dataset")
+# Use columns to better organize inputs
+col1, col2, col3 = st.columns(3)
+with col1:
+    search_query = st.text_input('Search by book name or rating:')
+with col2:
+    # Add default sorting option
+    filter_by = st.selectbox('Order by:', ['Default', 'Price', 'Rating'])
+with col3:
+    if st.button('Search'):
+        results = fetch_books(search_query, filter_by if filter_by != 'Default' else None)
 
-st.markdown("""
-            This datasets is related to red variants of the Portuguese :red[🍷"Vinho Verde"] wine. The dataset describes the amount of various chemicals present in wine and their effect on its quality.
-            """)
-
-quality = st.sidebar.selectbox(
-    'Select Wine Quality', options=["All Qualities"] + sorted(df['quality'].unique().tolist())
-)
-if quality != "All Qualities":
-    df = df[df['quality'] == int(quality)]
-
-min_alcohol, max_alcohol = st.sidebar.slider('Select a range of alcohol content',
-                                             float(df['alcohol'].min()),
-                                             float(df['alcohol'].max()),
-                                             (float(df['alcohol'].min()), float(df['alcohol'].max())))
-df = df[(df['alcohol'] >= min_alcohol) & (df['alcohol'] <= max_alcohol)]
-
-chart_type = st.sidebar.selectbox(
-    "Select Chart Type", 
-    options=["Scatter Plot", "Bar Chart", "3D Scatter", "Parallel Categories"]
-)
-
-with st.expander("Raw Data"):
-    st.write(df)
-
-if chart_type == "Scatter Plot":
-        fig1 = px.scatter(df, x="fixed acidity", y="residual sugar")
-        st.plotly_chart(fig1)
-elif chart_type == "Bar Chart":
-        fig1 = px.bar(df, x="quality", y="alcohol")
-        st.plotly_chart(fig1)
-elif chart_type == "3D Scatter":
-        fig1 = px.scatter_3d(df, x='alcohol', y='fixed acidity', z='residual sugar',
-        color='quality')
-        st.plotly_chart(fig1)
-elif chart_type == "Parallel Categories":
-        fig1 = fig = px.parallel_categories(df)
-        st.plotly_chart(fig1)
+# Display results in a more structured way
+if 'results' in locals():
+    if results:
+        for result in results:
+            with st.expander(f"{result[1]} - £{result[2]} - Rating: {result[3]}"):
+                st.image(result[5], width=100)  # Display book image
+                st.write(f"**Title:** {result[1]}")
+                st.write(f"**Price:** £{result[2]}")
+                st.write(f"**Rating:** {result[3]}")
+                st.markdown(f"[More Details]({result[4]})")  # Provide a clickable link to the book details
+    else:
+        st.write("No books found matching your criteria.")
